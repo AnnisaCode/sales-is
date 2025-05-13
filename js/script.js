@@ -168,6 +168,8 @@ function showSection(sectionId) {
     const selectedSection = document.getElementById(sectionId);
     if (selectedSection) {
         selectedSection.style.display = 'block';
+        // Simpan section aktif ke localStorage
+        saveActiveSection(sectionId);
     } else {
         console.error(`[ERROR] Section with ID ${sectionId} not found`);
     }
@@ -211,26 +213,7 @@ function loadDashboardContent() {
     console.log('[DASHBOARD] Loading dashboard content...');
 
     // Populate recent transactions table
-    const transactionsTable = document.getElementById('recent-transactions');
-    if (!transactionsTable) {
-        console.error('[ERROR] Recent transactions table not found');
-        return; // Skip if element doesn't exist
-    }
-
-    transactionsTable.innerHTML = '';
-
-    mockData.sales.slice(0, 5).forEach(sale => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${sale.invoice}</td>
-            <td>${sale.customerName}</td>
-            <td>${sale.items} items</td>
-            <td>${sale.date}</td>
-            <td>${formatCurrency(sale.amount)}</td>
-            <td><span class="status-badge ${sale.status.toLowerCase()}">${sale.status}</span></td>
-        `;
-        transactionsTable.appendChild(row);
-    });
+    updateRecentTransactions();
 
     // Initialize Sales Chart
     const salesChartEl = document.getElementById('salesChart');
@@ -410,16 +393,17 @@ function loadProducts() {
     // Add event listeners for delete buttons
     document.querySelectorAll('.delete-product').forEach(button => {
         button.addEventListener('click', function () {
-            if (confirm('Are you sure you want to delete this product?')) {
-                const productId = this.getAttribute('data-id');
+            const productId = this.getAttribute('data-id');
+            showConfirm('Are you sure you want to delete this product?', () => {
                 // In a real application, this would send a delete request to the server
-                // For this mock, we're just removing from the array
                 const index = mockData.products.findIndex(p => p.id == productId);
                 if (index !== -1) {
                     mockData.products.splice(index, 1);
+                    // Simpan data ke localStorage
+                    saveAppData();
                     loadProducts(); // Reload the table
                 }
-            }
+            });
         });
     });
 
@@ -459,10 +443,11 @@ function loadProducts() {
             const stock = parseInt(document.getElementById('productStock')?.value);
 
             if (!name || !category || isNaN(price) || isNaN(stock)) {
-                alert('Please fill in all required fields');
+                alert('Please fill in all required fields', 'error');
                 return;
             }
 
+            // Determine product status based on stock
             let status = 'In Stock';
             if (stock <= 0) {
                 status = 'Out of Stock';
@@ -495,6 +480,9 @@ function loadProducts() {
                     status
                 });
             }
+
+            // Simpan data ke localStorage
+            saveAppData();
 
             // Close modal and reload products list
             $('#productModal').modal('hide');
@@ -610,15 +598,17 @@ function loadCustomers() {
     // Add event listeners for delete buttons
     document.querySelectorAll('.delete-customer').forEach(button => {
         button.addEventListener('click', function () {
-            if (confirm('Are you sure you want to delete this customer?')) {
-                const customerId = this.getAttribute('data-id');
+            const customerId = this.getAttribute('data-id');
+            showConfirm('Are you sure you want to delete this customer?', () => {
                 // In a real application, this would send a delete request to the server
                 const index = mockData.customers.findIndex(c => c.id == customerId);
                 if (index !== -1) {
                     mockData.customers.splice(index, 1);
+                    // Simpan data ke localStorage
+                    saveAppData();
                     loadCustomers(); // Reload the table
                 }
-            }
+            });
         });
     });
 
@@ -702,7 +692,7 @@ document.getElementById('saveCustomerBtn')?.addEventListener('click', function (
     const type = document.getElementById('customerType').value;
 
     if (!name || !email || !phone) {
-        alert('Please fill in all required fields');
+        alert('Please fill in all required fields', 'error');
         return;
     }
 
@@ -733,6 +723,9 @@ document.getElementById('saveCustomerBtn')?.addEventListener('click', function (
             lastPurchase: '-'
         });
     }
+
+    // Simpan data ke localStorage
+    saveAppData();
 
     // Close modal and reload customers list
     $('#customerModal').modal('hide');
@@ -814,22 +807,24 @@ function loadSales() {
         button.addEventListener('click', function () {
             const invoice = this.getAttribute('data-invoice');
             // In a real application, this would load the sale details
-            alert(`Viewing sale details for invoice: ${invoice}`);
+            alert(`Viewing sale details for invoice: ${invoice}`, 'info');
         });
     });
 
     // Add event listeners for delete buttons
     document.querySelectorAll('.delete-sale').forEach(button => {
         button.addEventListener('click', function () {
-            if (confirm('Are you sure you want to delete this sales record?')) {
-                const invoice = this.getAttribute('data-invoice');
+            const invoice = this.getAttribute('data-invoice');
+            showConfirm('Are you sure you want to delete this sales record?', () => {
                 // In a real application, this would send a delete request to the server
                 const index = mockData.sales.findIndex(s => s.invoice === invoice);
                 if (index !== -1) {
                     mockData.sales.splice(index, 1);
+                    // Simpan data ke localStorage
+                    saveAppData();
                     loadSales(); // Reload the table
                 }
-            }
+            });
         });
     });
 
@@ -892,6 +887,8 @@ function loadSales() {
 
 // Initialize New Sale Modal
 function initNewSaleModal() {
+    console.log('[SALE] Initializing new sale modal');
+
     // Populate customer dropdown
     const customerSelect = document.getElementById('saleCustomer');
     customerSelect.innerHTML = '<option value="">Choose Customer</option>';
@@ -920,6 +917,39 @@ function initNewSaleModal() {
             updateSaleCalculations();
         }
     });
+
+    // Payment method info
+    const paymentMethodSelect = document.getElementById('salePaymentMethod');
+    if (paymentMethodSelect) {
+        // Tambahkan info text setelah dropdown payment method
+        const paymentMethodInfo = document.createElement('small');
+        paymentMethodInfo.id = 'paymentMethodInfo';
+        paymentMethodInfo.className = 'form-text text-muted mt-1';
+
+        // Tambahkan ke DOM setelah select
+        if (paymentMethodSelect.parentNode) {
+            paymentMethodSelect.parentNode.appendChild(paymentMethodInfo);
+        }
+
+        // Update info text berdasarkan pilihan
+        paymentMethodSelect.addEventListener('change', function () {
+            const method = this.value;
+            const infoText = document.getElementById('paymentMethodInfo');
+
+            if (infoText) {
+                if (method === 'Bank Transfer') {
+                    infoText.textContent = 'Note: Some bank transfers may be marked as "Pending" until they are verified';
+                } else if (method === 'Cash') {
+                    infoText.textContent = 'Payment will be marked as "Completed" immediately';
+                } else if (method === 'Credit Card') {
+                    infoText.textContent = 'Payment will be processed and marked as "Completed" immediately';
+                }
+            }
+        });
+
+        // Trigger change untuk set initial text
+        paymentMethodSelect.dispatchEvent(new Event('change'));
+    }
 
     // Handle save sale button
     document.getElementById('saveSaleBtn').addEventListener('click', function () {
@@ -1082,7 +1112,7 @@ function saveSaleTransaction() {
 
     if (!saleCustomerEl || !saleDateEl || !salePaymentMethodEl) {
         console.error('[ERROR] Required sale form elements not found');
-        alert('Error accessing sale form elements. Please try again later.');
+        alert('Error accessing sale form elements. Please try again later.', 'error');
         return;
     }
 
@@ -1091,15 +1121,19 @@ function saveSaleTransaction() {
     const paymentMethod = salePaymentMethodEl.value;
     const notes = saleNotesEl ? saleNotesEl.value : '';
 
-    if (!customerId) {
-        alert('Please select a customer');
+    console.log('[SALE] Customer ID:', customerId, 'Payment Method:', paymentMethod);
+
+    // Validasi customer ID
+    if (customerId === '') {
+        console.error('[SALE] No customer selected');
+        // alert('Please select a customer', 'warning');
         return;
     }
 
     // Check if there are valid product selections
     const productRows = document.querySelectorAll('#saleProductsList tr');
     if (productRows.length === 0) {
-        alert('Please add at least one product');
+        // alert('Please add at least one product', 'warning');
         return;
     }
 
@@ -1160,7 +1194,7 @@ function saveSaleTransaction() {
     });
 
     if (validProducts === 0) {
-        alert('Please select at least one valid product');
+        // alert('Please select at least one valid product', 'warning');
         return;
     }
 
@@ -1168,7 +1202,7 @@ function saveSaleTransaction() {
     const customer = mockData.customers.find(c => c.id == customerId);
     if (!customer) {
         console.error(`[ERROR] Customer with id=${customerId} not found`);
-        alert('Error: Selected customer not found.');
+        alert('Error: Selected customer not found.', 'error');
         return;
     }
 
@@ -1188,6 +1222,14 @@ function saveSaleTransaction() {
     const invoiceNumber = `INV-${new Date().getFullYear()}-${String(nextInvoiceNum).padStart(3, '0')}`;
     console.log(`[SALE] Generated invoice number: ${invoiceNumber}`);
 
+    // Determine status based on payment method
+    let status = 'Completed';
+    if (paymentMethod === 'Bank Transfer') {
+        // For demo, randomly set some bank transfers to pending
+        status = Math.random() > 0.7 ? 'Pending' : 'Completed';
+    }
+    console.log(`[SALE] Transaction status set to: ${status}`);
+
     // Create new sale record
     const newSale = {
         invoice: invoiceNumber,
@@ -1197,7 +1239,7 @@ function saveSaleTransaction() {
         items: saleItems.length,
         paymentMethod,
         amount: totalAmount,
-        status: 'Completed',
+        status,
         notes,
         itemDetails: saleItems
     };
@@ -1213,12 +1255,18 @@ function saveSaleTransaction() {
         mockData.customers[customerIndex].lastPurchase = date;
     }
 
+    // Simpan data ke localStorage
+    saveAppData();
+
     // Close modal and reload sales list
     $('#saleModal').modal('hide');
     loadSales();
 
+    // Update recent transactions on dashboard
+    updateRecentTransactions();
+
     // Show success notification
-    alert(`Sale successfully recorded with Invoice #${invoiceNumber}`);
+    alert(`Sale successfully recorded with Invoice #${invoiceNumber}`, 'success');
 }
 
 // Reports Management
@@ -1776,7 +1824,7 @@ function initAuth() {
                 } else {
                     // Failed login
                     console.log('[AUTH] Login failed: Invalid credentials');
-                    alert('Invalid username or password. Please try again.');
+                    alert('Invalid username or password. Please try again.', 'error');
                 }
             });
 
@@ -1935,10 +1983,13 @@ document.addEventListener('DOMContentLoaded', function () {
 document.addEventListener('DOMContentLoaded', function () {
     console.log('[APP] Initializing application...');
 
+    // Muat data aplikasi dari localStorage jika ada
+    loadAppData();
+
     // Inisialisasi autentikasi
     initAuth();
 
-    // Cek jika pengguna sudah login, maka load dashboard
+    // Cek jika pengguna sudah login, maka load section yang sesuai
     if (checkLoginState()) {
         const loginSection = document.getElementById('loginSection');
         const mainApp = document.getElementById('mainApp');
@@ -1946,7 +1997,35 @@ document.addEventListener('DOMContentLoaded', function () {
         if (loginSection && mainApp) {
             loginSection.style.display = 'none';
             mainApp.style.display = 'block';
-            loadDashboard();
+
+            // Dapatkan section aktif dari localStorage dan tampilkan
+            const activeSection = getActiveSection();
+            console.log(`[APP] Restoring active section: ${activeSection}`);
+
+            // Muat konten yang sesuai
+            switch (activeSection) {
+                case 'dashboard-section':
+                    loadDashboard();
+                    break;
+                case 'products-section':
+                    showSection(activeSection);
+                    loadProducts();
+                    break;
+                case 'customers-section':
+                    showSection(activeSection);
+                    loadCustomers();
+                    break;
+                case 'sales-section':
+                    showSection(activeSection);
+                    loadSales();
+                    break;
+                case 'reports-section':
+                    showSection(activeSection);
+                    loadReports();
+                    break;
+                default:
+                    loadDashboard();
+            }
         }
     }
 
@@ -2004,3 +2083,109 @@ document.addEventListener('DOMContentLoaded', function () {
 
     console.log('[APP] Application initialized successfully');
 });
+
+// Update recent transactions on dashboard
+function updateRecentTransactions() {
+    console.log('[DASHBOARD] Updating recent transactions');
+
+    const transactionsTable = document.getElementById('recent-transactions');
+    if (!transactionsTable) {
+        console.error('[ERROR] Recent transactions table not found');
+        return; // Skip if element doesn't exist
+    }
+
+    // Clear existing content
+    transactionsTable.innerHTML = '';
+
+    // Sort sales by date (newest first)
+    const sortedSales = [...mockData.sales].sort((a, b) => {
+        return new Date(b.date) - new Date(a.date);
+    });
+
+    // Display only the most recent 5 transactions
+    sortedSales.slice(0, 5).forEach(sale => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${sale.invoice}</td>
+            <td>${sale.customerName}</td>
+            <td>${sale.items} items</td>
+            <td>${sale.date}</td>
+            <td>${formatCurrency(sale.amount)}</td>
+            <td><span class="status-badge ${sale.status.toLowerCase()}">${sale.status}</span></td>
+        `;
+        transactionsTable.appendChild(row);
+    });
+
+    console.log('[DASHBOARD] Recent transactions updated successfully');
+}
+
+// Fungsi untuk menyimpan data ke localStorage
+function saveAppData() {
+    console.log('[STORAGE] Saving application data to localStorage');
+    try {
+        localStorage.setItem('salesAppData', JSON.stringify(mockData));
+        return true;
+    } catch (error) {
+        console.error('[STORAGE] Error saving data to localStorage:', error);
+        return false;
+    }
+}
+
+// Fungsi untuk memuat data dari localStorage
+function loadAppData() {
+    console.log('[STORAGE] Loading application data from localStorage');
+    try {
+        const savedData = localStorage.getItem('salesAppData');
+        if (savedData) {
+            console.log('[STORAGE] Found saved data in localStorage');
+            mockData = JSON.parse(savedData);
+            return true;
+        }
+        console.log('[STORAGE] No saved data found in localStorage');
+        return false;
+    } catch (error) {
+        console.error('[STORAGE] Error loading data from localStorage:', error);
+        return false;
+    }
+}
+
+// Fungsi untuk menampilkan dialog konfirmasi kustom
+function showConfirm(message, onConfirm, onCancel) {
+    console.log(`[CONFIRM] ${message}`);
+
+    // Karena ini adalah prototype, kita masih menggunakan confirm browser untuk sementara
+    // Tapi kita bisa menggantinya dengan UI kustom nanti
+    if (confirm(message)) {
+        if (typeof onConfirm === 'function') {
+            onConfirm();
+        }
+    } else {
+        if (typeof onCancel === 'function') {
+            onCancel();
+        }
+    }
+}
+
+// Simpan section aktif di localStorage
+function saveActiveSection(sectionId) {
+    console.log(`[SECTION] Saving active section: ${sectionId}`);
+    try {
+        localStorage.setItem('salesAppActiveSection', sectionId);
+        return true;
+    } catch (error) {
+        console.error('[SECTION] Error saving active section:', error);
+        return false;
+    }
+}
+
+// Dapatkan section aktif dari localStorage
+function getActiveSection() {
+    try {
+        const activeSection = localStorage.getItem('salesAppActiveSection');
+        console.log(`[SECTION] Retrieved active section: ${activeSection || 'none'}`);
+        return activeSection || 'dashboard-section'; // Default ke dashboard jika tidak ada
+    } catch (error) {
+        console.error('[SECTION] Error getting active section:', error);
+        return 'dashboard-section';
+    }
+}
