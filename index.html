@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Information System</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+</head>
+
+<body>
+    <!-- Sidebar Navigation -->
+    <aside id="sidebar">
+        <!-- Brand Logo -->
+        <div class="sidebar-brand">
+            <img class="brand-icon" src="https://img.icons8.com/cotton/64/product.png" alt="product">
+            <span class="brand-text">SalesIS</span>
+        </div>
+
+        <!-- Navigation Links -->
+        <nav class="sidebar-nav">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link active" href="/">
+                        <i data-feather="bar-chart-2"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/products">
+                        <i data-feather="box"></i>
+                        <span>Products</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/customers">
+                        <i data-feather="users"></i>
+                        <span>Customers</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/sales">
+                        <i data-feather="shopping-cart"></i>
+                        <span>Sales</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div id="main">
+        <!-- Top Header with Profile -->
+        <header id="top-header">
+            <div class="profile-container">
+                <img src="https://i.pravatar.cc/36?img=12" class="avatar" alt="Profile">
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <main id="content">
+            <section id="dashboard-section" class="content-section">
+                <h2>Dashboard</h2>
+                <p>Ini adalah bagian konten untuk dashboard.</p>
+            </section>
+
+            <section id="products-section" class="content-section" style="display: none;">
+                <h2>Products</h2>
+                <p>Ini adalah bagian konten untuk halaman produk.</p>
+            </section>
+
+            <section id="customers-section" class="content-section" style="display: none;">
+                <h2>Customers</h2>
+                <p>Ini adalah bagian konten untuk halaman pelanggan.</p>
+            </section>
+
+            <section id="sales-section" class="content-section" style="display: none;">
+                <h2>Sales</h2>
+                <p>Ini adalah bagian konten untuk halaman penjualan.</p>
+            </section>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        // Initialize Feather icons
+        feather.replace();
+
+        // Simple navigation handling
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+
+                // Remove active class from all links
+                document.querySelectorAll('.nav-link').forEach(l => {
+                    l.classList.remove('active');
+                });
+
+                // Add active class to clicked link
+                this.classList.add('active');
+
+                // Hide all sections
+                document.querySelectorAll('.content-section').forEach(section => {
+                    section.style.display = 'none';
+                });
+
+                // Show appropriate section based on link
+                const href = this.getAttribute('href').replace('/', '');
+                const sectionId = href ? `${href}-section` : 'dashboard-section';
+                document.getElementById(sectionId || 'dashboard-section').style.display = 'block';
+            });
+        });
+    </script>
+</body>
+
+</html>
